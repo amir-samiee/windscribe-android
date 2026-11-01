@@ -316,6 +316,12 @@
     <string name="update">Update</string>
     <string name="enter_credentials">Enter Credentials</string>
     <string name="connect">Connect</string>
+    <string name="brute_force_connect">Auto-Try</string>
+    <string name="brute_force_failed">Auto-Try could not connect to any location or protocol.</string>
+    <string name="brute_force_unavailable">Auto-Try works with locations, not Custom Configs or Static IPs.</string>
+    <string name="accessibility_brute_force">Try all locations and protocols</string>
+    <string name="accessibility_brute_force_cancel">Stop trying locations and protocols</string>
+    <string name="accessibility_status_brute_force_trying">Trying locations</string>
     <string name="config_title" translatable="false">Config Title</string>
     <string name="send_debug_log">Send Debug Log</string>
     <string name="send_ikev2_log">Send IKEv2 Log</string>

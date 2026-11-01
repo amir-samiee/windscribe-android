@@ -345,6 +345,28 @@ class AutoConnectionManager(
             }
         }
 
+    /**
+     * A single attempt on [protocolInformation], for callers that drive their own walk — the
+     * brute-force sweep. Unlike [connectInForeground] it neither walks the protocol list nor shows a
+     * dialog: the caller decides what to try next.
+     *
+     * Failover stays armed for the attempt, so a failure holds the TUN for the next attempt instead
+     * of reopening the interface. The caller must call [stop] when its walk ends, or the held TUN
+     * waits for a reconnect that is not coming.
+     */
+    suspend fun connectOnce(
+        source: ConnectSource,
+        protocolInformation: ProtocolInformation,
+    ): VPNState =
+        withContext(Dispatchers.IO) {
+            isEnabled = true
+            connectionAttempt(
+                source = source,
+                protocolInformation = protocolInformation,
+                allowNodeRetry = false,
+            )
+        }
+
     suspend fun changeProtocolInForeground(source: ConnectSource) =
         withContext(Dispatchers.IO) {
             suspendCancellableCoroutine<Boolean> { it ->
