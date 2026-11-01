@@ -16,6 +16,8 @@ import com.windscribe.vpn.Windscribe.Companion.appContext
 import com.windscribe.vpn.apppreference.PreferencesHelper
 import com.windscribe.vpn.apppreference.isProtocolTweaksEnabled
 import com.windscribe.vpn.autoconnection.AutoConnectionManager
+import com.windscribe.vpn.autoconnection.BruteForceConnectManager
+import com.windscribe.vpn.autoconnection.BruteForceState
 import com.windscribe.vpn.autoconnection.ProtocolInformation
 import com.windscribe.vpn.backend.Util
 import com.windscribe.vpn.backend.VPNState
@@ -194,6 +196,12 @@ abstract class ConnectionViewmodel : ViewModel() {
 
     abstract fun onConnectButtonClick()
 
+    /** Progress of the brute-force sweep, if one is running. */
+    abstract val bruteForceState: StateFlow<BruteForceState>
+
+    /** Starts a sweep, or cancels the one in progress. */
+    abstract fun onBruteForceClick()
+
     /** Releases a [ConnectionUIState.Blocked] hold. The only action that works from that state. */
     abstract fun onTurnOffClick()
 
@@ -241,6 +249,7 @@ class ConnectionViewmodelImpl
         private val decoyTrafficController: DecoyTrafficController,
         private val resourceHelper: ResourceHelper,
         private val notificationRepository: NotificationRepository,
+        private val bruteForceConnectManager: BruteForceConnectManager,
     ) : ConnectionViewmodel() {
         private val _connectionUIState = MutableStateFlow<ConnectionUIState>(ConnectionUIState.Idle)
         override val connectionUIState: StateFlow<ConnectionUIState> = _connectionUIState
@@ -268,6 +277,8 @@ class ConnectionViewmodelImpl
         private val _newFeedCount = MutableStateFlow(0)
         override val newFeedCount: StateFlow<Int> = _newFeedCount
 
+        override val bruteForceState: StateFlow<BruteForceState> = bruteForceConnectManager.state
+
         private val lastLocationState: MutableStateFlow<LastSelectedLocation?> = MutableStateFlow(null)
         private val _aspectRatio = MutableStateFlow(1)
         override val aspectRatio: StateFlow<Int> = _aspectRatio
@@ -293,6 +304,29 @@ class ConnectionViewmodelImpl
             handleConnectionSoundsState()
             handleConnectionHapticFeedback()
             observeDecoyTrafficChanges()
+            observeBruteForceState()
+        }
+
+        private fun observeBruteForceState() {
+            viewModelScope.launch {
+                bruteForceState.collectLatest { state ->
+                    if (state is BruteForceState.Failed) {
+                        showToast(com.windscribe.vpn.R.string.brute_force_failed)
+                        bruteForceConnectManager.reset()
+                    }
+                }
+            }
+            // A successful sweep leaves the button on its connected look. The session can end later
+            // (user disconnect, failover), and the button must not keep claiming a sweep is live.
+            viewModelScope.launch {
+                vpnConnectionStateManager.state.collectLatest { vpnState ->
+                    if (vpnState.status == VPNState.Status.Disconnected &&
+                        bruteForceState.value is BruteForceState.Connected
+                    ) {
+                        bruteForceConnectManager.reset()
+                    }
+                }
+            }
         }
 
         private fun observeNotificationCount() {
@@ -777,6 +811,28 @@ class ConnectionViewmodelImpl
                     }
                 }
             }
+        }
+
+        override fun onBruteForceClick() {
+            if (bruteForceConnectManager.isSweeping) {
+                logger.debug("Brute force cancelled by the user.")
+                bruteForceConnectManager.cancel()
+                return
+            }
+            if (!WindUtilities.isOnline()) {
+                logger.warn("Cannot brute force: the device has no internet.")
+                showToast(com.windscribe.vpn.R.string.no_internet)
+                return
+            }
+            // The sweep enumerates datacenters, which means nothing for a custom config or a
+            // static IP: both connect to one fixed endpoint.
+            if (WindUtilities.getSourceTypeBlocking() != SelectedLocationType.CityLocation) {
+                logger.info("Cannot brute force: the selected location is not a city.")
+                showToast(com.windscribe.vpn.R.string.brute_force_unavailable)
+                return
+            }
+            logger.info("Brute force requested.")
+            bruteForceConnectManager.start()
         }
 
         override fun onCityClick(

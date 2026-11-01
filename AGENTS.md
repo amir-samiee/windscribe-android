@@ -74,6 +74,7 @@ Windscribe Android is a multi-protocol VPN application with comprehensive privac
 - **DNS Filtering**: R.O.B.E.R.T with customizable toggles
 - **Custom Configs**: Import WireGuard/OpenVPN configurations
 - **Static IPs**: Available with pro plans
+- **Auto-Try (Brute Force)**: User-initiated sweep over every location on the current protocol, then the next, until one connects
 
 ### Module Dependency Graph
 
@@ -143,6 +144,7 @@ androidapp/
 │       │                         #   VPNConnectionStateManager, NetworkInfoManager,
 │       │                         #   DeviceStateManager
 │       ├── autoconnection/       #   AutoConnectionManager — protocol failover
+│       │                         #   BruteForceConnectManager — location x protocol sweep
 │       ├── repository/           #   UserRepository, ServerListRepository, …
 │       ├── localdatabase/        #   Room (WindscribeDatabase, v43)
 │       ├── apppreference/        #   DataStore preferences
@@ -183,7 +185,7 @@ There is **no** `wsnet` or `test` module — `wsnet` is a prebuilt AAR dependenc
 5. **WSTunnel** — OpenVPN over WebSocket (max stealth)
 6. **WireGuard** — Modern, fast, efficient
 
-**Protocol Switching**: Automatic fallback on connection failure, manual override in settings, per-network configuration.
+**Protocol Switching**: Automatic fallback on connection failure, manual override in settings, per-network configuration. The user can also force it with Auto-Try: `BruteForceConnectManager` sweeps every location on the current protocol, then every location on the next, stopping at the first connection. It drives the walk itself through `AutoConnectionManager.connectOnce`, and must call `AutoConnectionManager.stop()` when the walk ends or the TUN stays held for a reconnect that is not coming.
 
 ### 2. wsnet Library for ALL API Calls
 

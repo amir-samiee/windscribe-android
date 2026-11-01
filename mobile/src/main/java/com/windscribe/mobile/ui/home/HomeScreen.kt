@@ -83,6 +83,7 @@ import androidx.navigation.NavController
 import com.windscribe.mobile.R
 import com.windscribe.mobile.ui.common.AnimatedIPAddress
 import com.windscribe.mobile.ui.common.AppConnectButton
+import com.windscribe.mobile.ui.common.BruteForceConnectButton
 import com.windscribe.mobile.ui.common.LocationImage
 import com.windscribe.mobile.ui.common.fitsInOneLine
 import com.windscribe.mobile.ui.connection.BridgeApiViewModel
@@ -360,7 +361,10 @@ private fun CompactUI(
                     .padding(top = 61.dp, end = 16.dp),
             contentAlignment = Alignment.TopEnd,
         ) {
-            AppConnectButton(connectionViewmodel)
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                AppConnectButton(connectionViewmodel)
+                BruteForceConnectButton(connectionViewmodel)
+            }
         }
         if (searchState) {
             SearchServerList(serverViewModel, connectionViewmodel, homeViewmodel)
